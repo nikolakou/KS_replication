@@ -45,7 +45,7 @@ tic;
 
 while dist>0.0001 && iterr<max_iterr
     
-policyfun = policy_fun(r0,crit,I,T,Amat,Ymat,Param,transition_matrix,income_states);
+[policyfun,cpnext] = policy_fun(r0,crit,I,T,Amat,Ymat,Param,transition_matrix,income_states);
 
 next = interp1(A,A, policyfun, "next");
 previous = interp1(A,A, policyfun, "previous");
@@ -132,7 +132,10 @@ end
 
 toc;
 
-function [policyfun] = policy_fun(r0,crit,I,T,Amat,Ymat,Param,transition_matrix,income_states)
+%%
+rouwen(0.9, 0, 1/(1-0.9^2), 7)
+
+function [policyfun,cpnext] = policy_fun(r0,crit,I,T,Amat,Ymat,Param,transition_matrix,income_states)
 
 fprintf("Start solving Aiyagari...")
 
@@ -201,6 +204,10 @@ end
 policyfun = (1+r0-Param.deprec)*Amat+w0*Ymat - cp0;
 
 end
+
+%%
+
+
 
 function [P_Rouw, z_Rouw] = rouwen(rho_Rouw, mu_uncond, sig_uncond, n_R)
 %ROUWEN   Rouwenhorst's method (1995) to approximate an AR(1) process using 
