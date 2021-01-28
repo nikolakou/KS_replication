@@ -49,7 +49,41 @@ Finally, we show how our code can be extended to one-asset HANK models by obtain
 
 \subsection*{The Krussel-Smith Model}
 
-TBC
+
+The original paper by Auclert et al. (2020) illustrates the sequence-space Jacobian method using the Krusell and Smith (1998) extension of the real business cycle model with household heterogeneity, so naturally our replication in Julia also takes this seminal model as a starting point. As they point out, writing this model in sequence space means assuming perfect foresight of the agents with respect to aggregates. %We proceed with a brief description of the model and then describe how the use of sequence-space Jacobians can generate impulse responses extremely efficiently.
+
+The model can be written in sequence space as
+$$
+\mathbf{H}_t(\mathbf{U}, Z) \equiv 
+\left( \begin{matrix}
+r_t + \delta -\alpha Z_t \left( \frac{K_{t-1}}{L_t} \right)^{\alpha-1} \\
+w_t - (1-\alpha)Z_t \left( \frac{K_{t-1}}{L_t} \right)^\alpha \\
+L_t - \sum_e \pi(e)e \\
+\mathcal{K}_t(\{r_s, w_s\}) - K_t
+\end{matrix} \right) = 
+\left( \begin{matrix}
+0 \\ 0 \\ 0 \\ 0
+\end{matrix} \right), \hspace{3cm} t = 0, 1, ...
+$$
+
+where $\mathbf{U} = (K, L, r, w)$ are the aggregate endogenous variables, Z is exogenous productivity, $(\alpha, \delta)$ are parameters and $e$ is the employment state with corresponding probability $\pi(e)$ (we for now normalize to $\sum_e \pi(e)e = 1$ without loss of generality).
+
+These four equations summarize the model: The first two lines state that the firm's first order conditions with respect to labor and capital have to hold, i.e. that rental and wage rates equal their marginal products, while the last two lines capture market clearing in the labor and capital markets
+
+The capital function $\mathcal{K}$ comes from the household block described by the following Bellman equation:
+
+\begin{align}
+    V_t(e, k_{\_} ) &= max_{c,k} \left\{  \frac{c^{1-\sigma}}{1-\sigma} + \beta \sum_{e'} V_{t+1} (e', k)\mathcal{P}(e, e')  \right\} \\
+    &s.t.\; c + k = (1+r_t)k_{\_}+we \\
+    &\; \; \; \; \;    k \geq 0
+\end{align}
+
+where $\mathcal{P}(e,e')$ is the transition probability from state $e$ to state $e'$.
+We can combine the above as just one function $H$ capturing capital market clearing in just one unknown $K$ and the exogenous variable $Z$:
+
+$$ H_t(K, Z) \equiv \mathcal{K}_t(\{\alpha Z_s K^{\alpha-1}_{s-1} - \delta, (1-\alpha), Z_s K_{s-1}^\alpha \} ) - K_t = 0 $$
+
+The model can also be represented as a Directed Acyclcic Graph (DAG) which illustrates how separating different blocks of the model simplifies the computation of the Jacobians. Substituting out variables that are outputs of some block but also serve as inputs to another block (as we have done in the $H$ function above) reduces the dimensionality and hence allows for a simpler mapping from shock and unknowns to targets which facilitates computation of the Jacobians.
 
 \subsection*{Description of Algorithm}
 
