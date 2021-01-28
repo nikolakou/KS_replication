@@ -1,0 +1,125 @@
+
+
+\documentclass[10pt]{article} % use larger type; default would be 10pt
+
+
+%\usepackage{palatino,amssymb,amsfonts,amsmath,latexsym,setspace}
+\usepackage{mathpazo,amssymb,amsfonts,amsmath,latexsym,setspace, amsthm}
+\usepackage{natbib,fancyhdr}
+\usepackage{bbm}
+\usepackage{bm}
+\usepackage[margin=1in]{geometry}
+\usepackage{subcaption}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+
+\renewcommand{\baselinestretch}{1.5}
+
+\DeclareMathOperator\supp{supp}
+
+\newtheorem{assumption}{Assumption}
+\newtheorem{prop}{Proposition}
+\newtheorem{definition}{Definition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+
+\setlength{\parindent}{0em}
+\setlength{\parskip}{1em}
+
+\usepackage{titling}
+
+\setlength{\droptitle}{-10em} 
+
+\title{Using the Sequence Space Jacobian to Solve and Estimate Heterogeneous-Agent Models \\
+\vspace{1em} \large A replication exercise in Julia}
+\author{George Nikolakoudis \and Rafael Schwalb}
+\date{\today} % Activate to display a given date or no date (if empty),
+         % otherwise the current date is printed 
+
+\begin{document}
+\maketitle
+\nocite{*}
+
+This note and the accompanying code replicate the paper ``Using the Sequence Space Jacobian to Solve and Estimate Heterogeneous-Agent Models" by Auclert et al. (2020) in Julia. As this is a work in progress, visit our Github page at \url{https://github.com/nikolakou/KS_replication} for the most recent code.
+
+We begin by briefly summarizing the Krussel-Smith model, which we fully implement in Julia. We then briefly summarize the numerical algorithm, and show that we can replicate almost exactly all the impulse response functions of the paper.\footnote{Figures for Krussel-Smith are available in the following IPython Notebook \url{https://github.com/shade-econ/sequence-jacobian/blob/master/krusell_smith.ipynb} in the paper's Github repository.} The (very) small differences that do exist are attributed to our different interpolation schemes employed in the endogenous grid method.
+
+Finally, we show how our code can be extended to one-asset HANK models by obtaining the computationally intensive heterogenous agent Jacobian in Julia, and then exporting it to Auclert et al.,'s SHADE code so the Jacobian accumulation can be done automatically (which is simple, but very time-consuming to code up and error-prone if done manually). This offers additional flexibility in solving heterogeneous agent models, since using the heterogenous agent ``blocks" in Auclert et al. is somewhat convoluted (inputs must follow strict naming conventions), and the scope of outputs is limited (for example, it is difficult to obtain non-linear functions of aggregates, such as the \emph{dispersion} of output).
+
+\subsection*{The Krussel-Smith Model}
+
+TBC
+
+\subsection*{Description of Algorithm}
+
+The algorithm consists of three steps.
+
+\begin{enumerate}
+\item \textbf{Steady State}: This is standard. We use Carroll's (2006) method of endogenous grid points with no labour choice. We use Rowenhort's method (Kopecky and Suen, 2010) to discretize the individual income process to a 7 point Markov chain.
+\item \textbf{Partial Jacobians}: Partial Jacobians are separated into simple blocks and heterogeneous agent blocks. Simple blocks are functions for outputs that depend on a finite number of aggregates (e.g. $Y=K_{-1}^\alpha L^{1-\alpha}$). Heterogeneous agent blocks are implicit functions that depend on an infinite sequence of aggregates (e.g. consumption depends on the entire sequence of future real interest rates). For each block, we use numerical differentiation to evaluate the Jacobian of all outputs (for firms: $Y$, $r$, $w$) with respect to all inputs ($K$, $L$). We also use the ``fake news" algorithm (see the paper for more details) to evaluate heterogeneous agent Jacobians.
+\item \textbf{Jacobian accumulation}: Once we have the Jacobians, we need to do forward accumulation of the Jacobians of all exogenous variables (in Krussel-Smith, this is productivity $Z$) and unknowns (capital $K$) until we reach the market clearing conditions. Because there may be hundreds of Jacobians for richer models, this step is error-prone if done manually. However, it is straightforward in a simple heterogeneous agent model like Krussel-Smith. Once we have these ``cumulative" Jacobians we can use the implicit function theorem on the market clearing conditions to obtain the response of unknowns with respect to exogenous shocks. We may then ``unpack" the Jacobians to obtain the general equilibrium Jacobians and calculate impulse response functions efficiently.
+\end{enumerate}
+
+These steps are illustrated clearly in the IPython Notebook for this replication exercise.
+
+\subsection*{Results}
+
+We use the same parameters as in the paper (see our IPython Notebook for details). Auclert et al. calibrate the discount factor $\beta$ to hit a target real interest of $r=0.01$. Our equilibrium real interest rate is somewhat lower, at $r=0.0974$. We have found that the interest rate is somewhat sensitive to the type of interpolation scheme used in the endogenous grid method (for example, linear interpolation versus cubic splines) by a few basis points. 
+
+Still, our results for the general equilibrium Jacobians our very similar. All discrepancies that exist arise from the difference of 25 basis points in the steady-state real interest rate. Nevertheless, \emph{all} impulse response functions we obtain for \emph{any} variable are virtually identical between the two implementations. We plot some of these below. The figures on the left are from Auclert et al., while the figures on the right are our from pure Julia implementation.
+
+\begin{figure}[t]
+\begin{subfigure}[h]{.5 \textwidth}
+\centering
+\includegraphics[width = 0.8 \linewidth]{r_python}
+\end{subfigure}
+\begin{subfigure}[h]{.5 \textwidth}
+\centering
+\includegraphics[width = 0.8 \linewidth]{r_julia}
+\end{subfigure}
+
+\begin{subfigure}[h]{.5 \textwidth}
+\centering
+\includegraphics[width = 0.8 \linewidth]{Y_python}
+\end{subfigure}
+\begin{subfigure}[h]{.5 \textwidth}
+\centering
+\includegraphics[width = 0.8 \linewidth]{Y_julia}
+\end{subfigure}
+
+\begin{subfigure}[h]{.5 \textwidth}
+\centering
+\includegraphics[width = 0.8 \linewidth]{K_python}
+\end{subfigure}
+\begin{subfigure}[h]{.5 \textwidth}
+\centering
+\includegraphics[width = 0.8 \linewidth]{K_julia}
+\end{subfigure}
+\end{figure}
+
+
+We begin by comparing the real interest rate impulses due to a 1\% deviation of the productivity shock from steady-state. We plot these for various persistence parameters $\rho$ of the productivity process. Next, we plot the percentage deviation of output from steady-state for the same shock processes. Finally, we plot the capital response to various news shocks of a one-time increase in productivity. Note that this would be expensive to formulate recursively, but is done through a simple matrix multiplication once the Jacobian is obtained. Indeed, all impulse response functions will be almost identical to those of Auclert et al., because the Jacobians we obtain for the heterogeneous agent blocks are very similar, in spite of the slight steady-state real interest rate differential.
+
+\subsection*{Further Discussion: Application to HANK}
+
+The most computational intensive part of the above algorithm is obtaining the heterogenous agent Jacobians. However, the most error-prone part of the algorithm -- if done manually -- is step three, which is the packing and unpacking of the Jacobians. This is not at all computationally intensive, but requires to ``feed" all the outputs of certain blocks as inputs to those blocks that take these outputs as inputs. Because HANK models are large, this can quickly become tenuous. Thankfully, Auclert et al.'s code can do this forward accumulation (and the subsequent unpackaging) automatically.
+
+Hence, if one wants to solve more involved heterogeneous agent models that Auclert et al.'s code cannot support (this would be the case for more than two endogenous state variables, or more than one exogenous transition function), we suggest the following:
+
+\begin{enumerate}
+\item Solve for the steady-state using standard procedures.
+\item Obtain the computationally intensive heterogeneous agent block in Julia.
+\item Define all other simple blocks using the ``@simple" decorator in Python using the paper's code to obtain these Jacobians automatically.
+\item Export the heterogenous agent Jacobian to Python as a \emph{dictionary} and use the ``jac.get\_G" method with the heterogeneous agent Jacobian as an input to the key-word argument ``block\_list" to obtain all general equilibrium Jacobians.
+\end{enumerate}
+
+We have a work in progress on our Github page, KS\_main, that uses the endogenous grid method with endogenous labour supply (and can easily be extended to include taxation and dividends) that we can use to demonstrate that the above procedure works. Of course, Auclert et al.'s code can accommodate one-asset HANK models, so the real benefit to this approach lies in solving models that their code cannot support.
+
+\subsection*{Further Discussion: Application to non-linearity and occassionally binding constraints}
+
+The linear dynamics obtained through Jacobians make impulse response functions invariant to the \emph{sign} and \emph{magnitude} of shocks. This is somewhat of a limitation. Still, the Jacobians we obtained offer a powerful tool to obtain non-linear perfect foresight dynamics ``MIT shocks". This can be done by using quasi-newton methods to solve for the equilibrium path of unknowns through the market clearing conditions. We will implement this in the Krussel-Smith model in the future. However, we believe the Jacobian approach strictly dominates the BKM method for estimation and simulation. This is because covariances can be estimated in a matter of hundredths of a second with Jacobians, whereas the BKM method relies on iterating on a sequence of unknown aggregates, whose convergence properties may be delicate and time-consuming.
+
+The solution methods of Gregor Boehl (2021) and Guerrieri and Iacoviello (2015) for occasionally binding constraints utilize solution concepts that rely on a state-space representation of the model. We are exploring how this can be implemented in a sequence-space approach more efficiently using quasi-newton methods. 
+
+\end{document}
